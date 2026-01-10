@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { FileText, Plus, Search, X, Trash2, Star } from "lucide-react";
+import { FileText, Plus, Search, Trash2, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Document } from "@/lib/types";
 import {
@@ -23,7 +23,6 @@ export function Sidebar({ onOpenQuickSwitch }: SidebarProps) {
   const router = useRouter();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
   
   // Context menu state
   const [contextMenu, setContextMenu] = useState<{
@@ -54,23 +53,14 @@ export function Sidebar({ onOpenQuickSwitch }: SidebarProps) {
     loadDocuments();
   }, [pathname, loadDocuments]);
 
-  // Filter documents by search query
-  const filteredDocuments = useMemo(() => {
-    if (!searchQuery.trim()) return documents;
-    const query = searchQuery.toLowerCase();
-    return documents.filter((doc) =>
-      (doc.title || "Untitled").toLowerCase().includes(query)
-    );
-  }, [documents, searchQuery]);
-
   // Separate starred and non-starred documents
   const starredDocuments = useMemo(() => {
-    return filteredDocuments.filter((doc) => doc.starred);
-  }, [filteredDocuments]);
+    return documents.filter((doc) => doc.starred);
+  }, [documents]);
 
   const unstarredDocuments = useMemo(() => {
-    return filteredDocuments.filter((doc) => !doc.starred);
-  }, [filteredDocuments]);
+    return documents.filter((doc) => !doc.starred);
+  }, [documents]);
 
   // Create new document and navigate
   const handleNewDocument = () => {
@@ -205,30 +195,6 @@ export function Sidebar({ onOpenQuickSwitch }: SidebarProps) {
           </button>
         </div>
 
-        {/* Search input */}
-        {documents.length > 0 && (
-          <div className="px-2 pb-2">
-            <div className="relative">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Filter..."
-                className="w-full pl-7 pr-7 py-1 text-sm bg-muted/50 border border-transparent focus:border-border rounded-md outline-none placeholder:text-muted-foreground/60"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery("")}
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 hover:bg-muted rounded text-muted-foreground hover:text-foreground"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
         {/* Empty state */}
         {isLoaded && documents.length === 0 && (
           <div className="px-2 py-8 text-center">
@@ -241,13 +207,6 @@ export function Sidebar({ onOpenQuickSwitch }: SidebarProps) {
             >
               Create your first document
             </button>
-          </div>
-        )}
-
-        {/* No filter results */}
-        {isLoaded && documents.length > 0 && filteredDocuments.length === 0 && (
-          <div className="px-2 py-4 text-center">
-            <p className="text-sm text-muted-foreground">No matches</p>
           </div>
         )}
 
