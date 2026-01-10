@@ -27,6 +27,3 @@ export type CommentThread = {
   createdAt: number;
   updatedAt: number;
 };
-
-// Legacy alias for compatibility
-export type Comment = CommentThread;

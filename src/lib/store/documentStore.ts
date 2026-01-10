@@ -108,14 +108,6 @@ export function toggleStarDocument(id: string): boolean {
   return newStarred;
 }
 
-// Get starred documents
-export function getStarredDocuments(): Document[] {
-  const docs = readFromStorage();
-  return [...docs]
-    .filter((doc) => doc.starred)
-    .sort((a, b) => b.updatedAt - a.updatedAt);
-}
-
 // Subscribe to storage changes (for cross-tab sync)
 export function subscribeToChanges(callback: () => void): () => void {
   const handler = (e: StorageEvent) => {

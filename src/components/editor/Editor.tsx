@@ -16,10 +16,13 @@ import {
   Quote,
   Code,
   MessageSquare,
+  Undo2,
+  Redo2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getDocument, updateDocument } from "@/lib/store/documentStore";
 import { getDocumentComments, deleteComment } from "@/lib/store/commentStore";
+import { useEditorContext } from "@/lib/EditorContext";
 
 interface EditorProps {
   documentId: string;
@@ -187,7 +190,8 @@ export function Editor({
     const doc = getDocument(documentId);
 
     if (doc?.content) {
-      editor.commands.setContent(doc.content);
+      // Use emitUpdate: false to prevent triggering update handlers and polluting history
+      editor.commands.setContent(doc.content, { emitUpdate: false });
     } else {
       editor.commands.clearContent();
     }
@@ -324,21 +328,29 @@ export function Editor({
     return data;
   }, [editor]);
 
-  // Expose methods via window for CommentPanel to call
+  // Register editor methods with context for CommentPanel to access
+  const { registerEditor, unregisterEditor } = useEditorContext();
+
   useEffect(() => {
-    (window as any).__editorApplyCommentMark = applyCommentMark;
-    (window as any).__editorRemoveCommentMark = removeCommentMark;
-    (window as any).__editorGetCommentText = getCommentText;
-    (window as any).__editorGetAllCommentTexts = getAllCommentTexts;
-    (window as any).__editorGetAllCommentData = getAllCommentData;
+    registerEditor({
+      applyCommentMark,
+      removeCommentMark,
+      getCommentText,
+      getAllCommentTexts,
+      getAllCommentData,
+    });
     return () => {
-      delete (window as any).__editorApplyCommentMark;
-      delete (window as any).__editorRemoveCommentMark;
-      delete (window as any).__editorGetCommentText;
-      delete (window as any).__editorGetAllCommentTexts;
-      delete (window as any).__editorGetAllCommentData;
+      unregisterEditor();
     };
-  }, [applyCommentMark, removeCommentMark, getCommentText, getAllCommentTexts, getAllCommentData]);
+  }, [
+    registerEditor,
+    unregisterEditor,
+    applyCommentMark,
+    removeCommentMark,
+    getCommentText,
+    getAllCommentTexts,
+    getAllCommentData,
+  ]);
 
   // Toggle comment panel (for toolbar button)
   const handleToggleCommentClick = () => {
@@ -366,6 +378,24 @@ export function Editor({
       {/* Floating toolbar */}
       <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm py-2 mb-4 border-b border-transparent">
         <div className="flex items-center gap-0.5 flex-wrap">
+          <ToolbarButton
+            onClick={() => editor.chain().focus().undo().run()}
+            disabled={!editor.can().undo()}
+            title="Undo (Cmd+Z)"
+          >
+            <Undo2 className="w-4 h-4" />
+          </ToolbarButton>
+
+          <ToolbarButton
+            onClick={() => editor.chain().focus().redo().run()}
+            disabled={!editor.can().redo()}
+            title="Redo (Cmd+Shift+Z)"
+          >
+            <Redo2 className="w-4 h-4" />
+          </ToolbarButton>
+
+          <ToolbarDivider />
+
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleBold().run()}
             isActive={editor.isActive("bold")}
@@ -478,20 +508,24 @@ function ToolbarButton({
   children,
   onClick,
   isActive,
+  disabled,
   title,
 }: {
   children: React.ReactNode;
   onClick: () => void;
   isActive?: boolean;
+  disabled?: boolean;
   title?: string;
 }) {
   return (
     <button
       onClick={onClick}
+      disabled={disabled}
       title={title}
       className={cn(
         "p-2 rounded hover:bg-muted transition-colors",
-        isActive && "bg-muted text-foreground"
+        isActive && "bg-muted text-foreground",
+        disabled && "opacity-40 cursor-not-allowed hover:bg-transparent"
       )}
     >
       {children}

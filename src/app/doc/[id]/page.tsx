@@ -15,6 +15,8 @@ import {
 } from "@/lib/store/documentStore";
 import { getDocumentComments } from "@/lib/store/commentStore";
 import { Document } from "@/lib/types";
+import { formatRelativeTime } from "@/lib/utils";
+import { EditorProvider } from "@/lib/EditorContext";
 
 interface DocPageProps {
   params: {
@@ -156,23 +158,14 @@ export default function DocPage({ params }: DocPageProps) {
     };
   }, []);
 
-  // Format relative time
+  // Format relative time for last edited
   const formatLastEdited = (timestamp: number | null) => {
     if (!timestamp) return "";
-
-    const seconds = Math.floor((Date.now() - timestamp) / 1000);
-
-    if (seconds < 5) return "Saved";
-    if (seconds < 60) return `Edited ${seconds}s ago`;
-
-    const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return `Edited ${minutes}m ago`;
-
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `Edited ${hours}h ago`;
-
-    const days = Math.floor(hours / 24);
-    return `Edited ${days}d ago`;
+    return formatRelativeTime(timestamp, {
+      prefix: "Edited",
+      recentLabel: "Saved",
+      showSeconds: true,
+    });
   };
 
   // Loading state
@@ -188,62 +181,64 @@ export default function DocPage({ params }: DocPageProps) {
   }
 
   return (
-    <div className="flex h-full">
-      {/* Main content area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Topbar
-          title={title || "Untitled"}
-          starred={starred}
-          onToggleStar={handleToggleStar}
-          onDelete={handleDeleteDocument}
-        />
-
-        <div className="flex-1 overflow-auto">
-          {/* Document header with large editable title */}
-          <div className="max-w-3xl mx-auto w-full px-16 pt-16 pb-4">
-            <input
-              type="text"
-              value={title}
-              onChange={handleTitleChange}
-              placeholder="Untitled"
-              className="w-full text-4xl font-bold text-foreground bg-transparent outline-none placeholder:text-muted-foreground/40"
-              spellCheck={false}
-            />
-
-            {/* Last edited indicator */}
-            <div className="mt-3 text-xs text-muted-foreground/60">
-              {formatLastEdited(lastEdited)}
-            </div>
-          </div>
-
-          {/* Editor */}
-          <Editor
-            documentId={params.id}
-            onUpdate={handleEditorUpdate}
-            isCommentPanelOpen={isCommentPanelOpen}
-            onToggleCommentPanel={toggleCommentPanel}
-            onAddCommentFromSelection={handleAddCommentFromSelection}
-            onCommentClick={handleCommentClick}
-            onCommentAdded={handleCommentAdded}
-            onCommentDeleted={handleCommentDeleted}
-            commentCount={commentCount}
-            pendingComment={pendingComment}
+    <EditorProvider>
+      <div className="flex h-full">
+        {/* Main content area */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <Topbar
+            title={title || "Untitled"}
+            starred={starred}
+            onToggleStar={handleToggleStar}
+            onDelete={handleDeleteDocument}
           />
-        </div>
-      </div>
 
-      {/* Comment panel (outside main content, affects full height) */}
-      <CommentPanel
-        documentId={params.id}
-        isOpen={isCommentPanelOpen}
-        onClose={closeCommentPanel}
-        selectedCommentId={selectedCommentId}
-        onSelectComment={setSelectedCommentId}
-        pendingComment={pendingComment}
-        onAddComment={handleCommentAdded}
-        onDeleteComment={handleCommentDeleted}
-        onCancelPending={() => setPendingComment(null)}
-      />
-    </div>
+          <div className="flex-1 overflow-auto">
+            {/* Document header with large editable title */}
+            <div className="max-w-3xl mx-auto w-full px-16 pt-16 pb-4">
+              <input
+                type="text"
+                value={title}
+                onChange={handleTitleChange}
+                placeholder="Untitled"
+                className="w-full text-4xl font-bold text-foreground bg-transparent outline-none placeholder:text-muted-foreground/40"
+                spellCheck={false}
+              />
+
+              {/* Last edited indicator */}
+              <div className="mt-3 text-xs text-muted-foreground/60">
+                {formatLastEdited(lastEdited)}
+              </div>
+            </div>
+
+            {/* Editor */}
+            <Editor
+              documentId={params.id}
+              onUpdate={handleEditorUpdate}
+              isCommentPanelOpen={isCommentPanelOpen}
+              onToggleCommentPanel={toggleCommentPanel}
+              onAddCommentFromSelection={handleAddCommentFromSelection}
+              onCommentClick={handleCommentClick}
+              onCommentAdded={handleCommentAdded}
+              onCommentDeleted={handleCommentDeleted}
+              commentCount={commentCount}
+              pendingComment={pendingComment}
+            />
+          </div>
+        </div>
+
+        {/* Comment panel (outside main content, affects full height) */}
+        <CommentPanel
+          documentId={params.id}
+          isOpen={isCommentPanelOpen}
+          onClose={closeCommentPanel}
+          selectedCommentId={selectedCommentId}
+          onSelectComment={setSelectedCommentId}
+          pendingComment={pendingComment}
+          onAddComment={handleCommentAdded}
+          onDeleteComment={handleCommentDeleted}
+          onCancelPending={() => setPendingComment(null)}
+        />
+      </div>
+    </EditorProvider>
   );
 }

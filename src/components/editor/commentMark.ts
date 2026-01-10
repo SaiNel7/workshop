@@ -16,6 +16,12 @@ declare module "@tiptap/core" {
 export const CommentMark = Mark.create<CommentMarkOptions>({
   name: "comment",
 
+  // Prevent the mark from extending when typing at its boundaries
+  inclusive: false,
+
+  // Allow exiting the mark when pressing arrow keys at boundaries
+  exitable: true,
+
   addOptions() {
     return {
       HTMLAttributes: {},

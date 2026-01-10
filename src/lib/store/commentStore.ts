@@ -185,26 +185,6 @@ export function toggleResolveThread(threadId: string): boolean {
   return threads[index].resolved;
 }
 
-// Legacy: Update a comment (updates first message)
-export function updateComment(id: string, content: string): void {
-  const threads = readFromStorage();
-  const index = threads.findIndex((t) => t.id === id);
-
-  if (index === -1) return;
-
-  if (threads[index].messages.length > 0) {
-    const now = Date.now();
-    threads[index].messages[0] = {
-      ...threads[index].messages[0],
-      content,
-      updatedAt: now,
-    };
-    threads[index].updatedAt = now;
-  }
-
-  writeToStorage(threads);
-}
-
 // Delete a thread
 export function deleteComment(id: string): void {
   const threads = readFromStorage();

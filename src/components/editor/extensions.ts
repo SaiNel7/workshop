@@ -1,10 +1,22 @@
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
+import { Extension } from "@tiptap/core";
 import { ReactRenderer } from "@tiptap/react";
 import { SuggestionProps, SuggestionKeyDownProps } from "@tiptap/suggestion";
 import { SlashCommands, filterCommands } from "./slashCommands";
 import { CommandMenu, CommandMenuRef, CommandItem } from "./CommandMenu";
 import { CommentMark } from "./commentMark";
+
+// Custom extension to add Ctrl+Y / Cmd+Y shortcut for redo (Windows/Linux style)
+const RedoShortcut = Extension.create({
+  name: "redoShortcut",
+
+  addKeyboardShortcuts() {
+    return {
+      "Mod-y": () => this.editor.commands.redo(),
+    };
+  },
+});
 
 // Create suggestion render function for React
 function createSuggestionRender() {
@@ -109,6 +121,9 @@ export const editorExtensions = [
         class: "editor-blockquote",
       },
     },
+    history: {
+      depth: 100,
+    },
   }),
   Placeholder.configure({
     placeholder: "Type '/' for commands, or just start writing...",
@@ -121,4 +136,5 @@ export const editorExtensions = [
     },
   }),
   CommentMark,
+  RedoShortcut,
 ];

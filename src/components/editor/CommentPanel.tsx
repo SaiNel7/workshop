@@ -21,7 +21,8 @@ import {
   deleteComment,
   toggleResolveThread,
 } from "@/lib/store/commentStore";
-import { cn } from "@/lib/utils";
+import { cn, formatRelativeTime } from "@/lib/utils";
+import { useEditorContext } from "@/lib/EditorContext";
 
 interface CommentPanelProps {
   documentId: string;
@@ -61,13 +62,13 @@ export function CommentPanel({
     new Set()
   );
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const { editorMethods } = useEditorContext();
 
   // Get live data (text + position) from the editor and clean up orphaned threads
   const refreshCommentData = useCallback(() => {
-    const getAllData = (window as any).__editorGetAllCommentData;
-    if (!getAllData) return;
+    if (!editorMethods?.getAllCommentData) return;
 
-    const data = getAllData();
+    const data = editorMethods.getAllCommentData();
     setCommentData(data);
 
     // Check for orphaned threads (exist in storage but not in editor)
@@ -83,7 +84,7 @@ export function CommentPanel({
       // Reload threads after cleanup
       setThreads(getDocumentComments(documentId));
     }
-  }, [documentId, onDeleteComment]);
+  }, [documentId, onDeleteComment, editorMethods]);
 
   // Load threads and position data
   const loadThreads = useCallback(() => {
@@ -151,10 +152,7 @@ export function CommentPanel({
     );
 
     // Apply the comment mark in the editor
-    const applyMark = (window as any).__editorApplyCommentMark;
-    if (applyMark) {
-      applyMark(thread.id);
-    }
+    editorMethods?.applyCommentMark(thread.id);
 
     onAddComment();
     setNewCommentText("");
@@ -176,7 +174,6 @@ export function CommentPanel({
   const handleStartEdit = (threadId: string, message: CommentMessage) => {
     setEditingMessage({ threadId, messageId: message.id });
     setEditText(message.content);
-    setShowMenu(null);
   };
 
   const handleSaveEdit = () => {
@@ -198,10 +195,7 @@ export function CommentPanel({
 
     if (threadDeleted) {
       // Remove the comment mark in the editor
-      const removeMark = (window as any).__editorRemoveCommentMark;
-      if (removeMark) {
-        removeMark(threadId);
-      }
+      editorMethods?.removeCommentMark(threadId);
       onDeleteComment(threadId);
     }
 
@@ -213,10 +207,7 @@ export function CommentPanel({
     deleteComment(threadId);
 
     // Remove the comment mark in the editor
-    const removeMark = (window as any).__editorRemoveCommentMark;
-    if (removeMark) {
-      removeMark(threadId);
-    }
+    editorMethods?.removeCommentMark(threadId);
 
     onDeleteComment(threadId);
     loadThreads();
@@ -500,7 +491,6 @@ function ThreadCard({
       {firstMessage && (
         <MessageBubble
           message={firstMessage}
-          threadId={thread.id}
           isEditing={
             editingMessage?.threadId === thread.id &&
             editingMessage?.messageId === firstMessage.id
@@ -533,7 +523,6 @@ function ThreadCard({
             <MessageBubble
               key={message.id}
               message={message}
-              threadId={thread.id}
               isEditing={
                 editingMessage?.threadId === thread.id &&
                 editingMessage?.messageId === message.id
@@ -581,7 +570,6 @@ function ThreadCard({
 // Message bubble component
 interface MessageBubbleProps {
   message: CommentMessage;
-  threadId: string;
   isEditing: boolean;
   editText: string;
   onStartEdit: () => void;
@@ -645,9 +633,9 @@ function MessageBubble({
         {message.content}
       </p>
       <div className="flex items-center justify-between mt-1">
-        <span className="text-xs text-muted-foreground">
-          {formatTime(message.updatedAt)}
-        </span>
+          <span className="text-xs text-muted-foreground">
+            {formatRelativeTime(message.updatedAt)}
+          </span>
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <button
             onClick={onStartEdit}
@@ -671,13 +659,3 @@ function MessageBubble({
   );
 }
 
-function formatTime(timestamp: number): string {
-  const now = Date.now();
-  const diff = now - timestamp;
-
-  if (diff < 60000) return "just now";
-  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
-
-  return new Date(timestamp).toLocaleDateString();
-}
