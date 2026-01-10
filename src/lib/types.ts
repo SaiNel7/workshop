@@ -4,6 +4,7 @@ export type Document = {
   content: any; // Tiptap JSON
   createdAt: number;
   updatedAt: number;
+  starred?: boolean;
 };
 
 export type DocumentListItem = Pick<Document, "id" | "title" | "updatedAt">;

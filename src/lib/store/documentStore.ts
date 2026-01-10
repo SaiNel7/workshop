@@ -91,6 +91,31 @@ export function deleteDocument(id: string): void {
   writeToStorage(filtered);
 }
 
+// Toggle starred status
+export function toggleStarDocument(id: string): boolean {
+  const docs = readFromStorage();
+  const index = docs.findIndex((doc) => doc.id === id);
+
+  if (index === -1) return false;
+
+  const newStarred = !docs[index].starred;
+  docs[index] = {
+    ...docs[index],
+    starred: newStarred,
+  };
+
+  writeToStorage(docs);
+  return newStarred;
+}
+
+// Get starred documents
+export function getStarredDocuments(): Document[] {
+  const docs = readFromStorage();
+  return [...docs]
+    .filter((doc) => doc.starred)
+    .sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
 // Subscribe to storage changes (for cross-tab sync)
 export function subscribeToChanges(callback: () => void): () => void {
   const handler = (e: StorageEvent) => {

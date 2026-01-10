@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Topbar } from "@/components/layout/Topbar";
 import { Editor } from "@/components/editor/Editor";
 import { CommentPanel } from "@/components/editor/CommentPanel";
@@ -8,6 +9,9 @@ import {
   getDocument,
   createDocument,
   updateDocument,
+  deleteDocument,
+  getAllDocuments,
+  toggleStarDocument,
 } from "@/lib/store/documentStore";
 import { getDocumentComments } from "@/lib/store/commentStore";
 import { Document } from "@/lib/types";
@@ -19,8 +23,10 @@ interface DocPageProps {
 }
 
 export default function DocPage({ params }: DocPageProps) {
+  const router = useRouter();
   const [document, setDocument] = useState<Document | null>(null);
   const [title, setTitle] = useState("");
+  const [starred, setStarred] = useState(false);
   const [lastEdited, setLastEdited] = useState<number | null>(null);
   const titleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -47,6 +53,7 @@ export default function DocPage({ params }: DocPageProps) {
 
     setDocument(doc);
     setTitle(doc.title);
+    setStarred(doc.starred || false);
     setLastEdited(doc.updatedAt);
     loadCommentCount();
   }, [params.id, loadCommentCount]);
@@ -121,6 +128,25 @@ export default function DocPage({ params }: DocPageProps) {
     setIsCommentPanelOpen(true);
   }, []);
 
+  // Handle toggle star
+  const handleToggleStar = useCallback(() => {
+    const newStarred = toggleStarDocument(params.id);
+    setStarred(newStarred);
+  }, [params.id]);
+
+  // Handle delete document
+  const handleDeleteDocument = useCallback(() => {
+    deleteDocument(params.id);
+    
+    // Navigate to another document or home
+    const remainingDocs = getAllDocuments();
+    if (remainingDocs.length > 0) {
+      router.push(`/doc/${remainingDocs[0].id}`);
+    } else {
+      router.push("/");
+    }
+  }, [params.id, router]);
+
   // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
@@ -165,7 +191,12 @@ export default function DocPage({ params }: DocPageProps) {
     <div className="flex h-full">
       {/* Main content area */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Topbar title={title || "Untitled"} />
+        <Topbar
+          title={title || "Untitled"}
+          starred={starred}
+          onToggleStar={handleToggleStar}
+          onDelete={handleDeleteDocument}
+        />
 
         <div className="flex-1 overflow-auto">
           {/* Document header with large editable title */}
