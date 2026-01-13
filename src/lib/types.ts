@@ -13,9 +13,10 @@ export type DocumentListItem = Pick<Document, "id" | "title" | "updatedAt">;
 export type CommentMessage = {
   id: string;
   content: string;
-  author: string;
+  author: string; // "user" or "ai"
   createdAt: number;
   updatedAt: number;
+  status?: "pending" | "complete" | "error"; // For AI messages
 };
 
 export type CommentThread = {
@@ -26,4 +27,6 @@ export type CommentThread = {
   resolved: boolean;
   createdAt: number;
   updatedAt: number;
+  isAIThread?: boolean; // True if this is an AI collaboration thread
+  aiMode?: "critique" | "synthesize"; // The selected AI mode for this thread
 };

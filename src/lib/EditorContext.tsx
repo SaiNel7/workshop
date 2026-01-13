@@ -2,6 +2,8 @@
 
 import { createContext, useContext, useCallback, useRef, ReactNode } from "react";
 
+import type { Editor } from "@tiptap/react";
+
 // Types for the editor methods
 export interface EditorMethods {
   applyCommentMark: (commentId: string) => void;
@@ -9,6 +11,7 @@ export interface EditorMethods {
   getCommentText: (commentId: string) => string | null;
   getAllCommentTexts: () => Record<string, string>;
   getAllCommentData: () => Record<string, { text: string; position: number }>;
+  getEditorInstance: () => Editor | null;
 }
 
 interface EditorContextValue {

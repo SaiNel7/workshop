@@ -1,16 +1,17 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { MoreHorizontal, Star, Trash2 } from "lucide-react";
+import { MoreHorizontal, Star, Trash2, Brain } from "lucide-react";
 
 interface TopbarProps {
   title?: string;
   starred?: boolean;
   onToggleStar?: () => void;
   onDelete?: () => void;
+  onOpenBrain?: () => void;
 }
 
-export function Topbar({ title, starred, onToggleStar, onDelete }: TopbarProps) {
+export function Topbar({ title, starred, onToggleStar, onDelete, onOpenBrain }: TopbarProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -63,6 +64,13 @@ export function Topbar({ title, starred, onToggleStar, onDelete }: TopbarProps) 
       </div>
       
       <div className="flex items-center gap-1">
+        <button
+          onClick={onOpenBrain}
+          className="p-1.5 hover:bg-muted rounded transition-colors text-muted-foreground hover:text-foreground"
+          title="Project Brain"
+        >
+          <Brain className="w-4 h-4" />
+        </button>
         <button
           onClick={onToggleStar}
           className="p-1.5 hover:bg-muted rounded transition-colors text-muted-foreground hover:text-foreground"

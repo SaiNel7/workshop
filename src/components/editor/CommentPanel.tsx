@@ -10,7 +10,10 @@ import {
   CheckCircle2,
   Circle,
   Send,
+  Sparkles,
+  Loader2,
 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 import { CommentThread, CommentMessage } from "@/lib/types";
 import {
   getDocumentComments,
@@ -20,9 +23,16 @@ import {
   deleteMessage,
   deleteComment,
   toggleResolveThread,
+  addUserPromptToAIThread,
+  addAIMessageToThread,
+  updateAIMessage,
 } from "@/lib/store/commentStore";
 import { cn, formatRelativeTime } from "@/lib/utils";
 import { useEditorContext } from "@/lib/EditorContext";
+import { AskAIComposer } from "@/components/ai/AskAIComposer";
+import { buildContextPack } from "@/lib/contextExtractor";
+import { getBrain } from "@/lib/store/brainStore";
+import type { AskAIMode, AskAIRequest, AskAIResponse } from "@/lib/ai/schema";
 
 interface CommentPanelProps {
   documentId: string;
@@ -61,6 +71,7 @@ export function CommentPanel({
   const [expandedThreads, setExpandedThreads] = useState<Set<string>>(
     new Set()
   );
+  const [aiLoading, setAILoading] = useState<Record<string, boolean>>({});
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const { editorMethods } = useEditorContext();
 
@@ -72,8 +83,9 @@ export function CommentPanel({
     setCommentData(data);
 
     // Check for orphaned threads (exist in storage but not in editor)
+    // NOTE: Exclude AI threads from orphan cleanup since they don't have marks in the editor
     const storedThreads = getDocumentComments(documentId);
-    const orphanedThreads = storedThreads.filter((thread) => !data[thread.id]);
+    const orphanedThreads = storedThreads.filter((thread) => !thread.isAIThread && !data[thread.id]);
 
     // Delete orphaned threads
     if (orphanedThreads.length > 0) {
@@ -117,8 +129,9 @@ export function CommentPanel({
     return posA - posB;
   });
 
-  // Separate resolved and unresolved
-  const unresolvedThreads = sortedThreads.filter((t) => !t.resolved);
+  // Separate AI threads awaiting prompt, regular unresolved, and resolved
+  const aiThreadsAwaitingPrompt = sortedThreads.filter((t) => t.isAIThread && t.messages.length === 0);
+  const unresolvedThreads = sortedThreads.filter((t) => !t.resolved && !(t.isAIThread && t.messages.length === 0));
   const resolvedThreads = sortedThreads.filter((t) => t.resolved);
 
   // Focus input when pending comment exists
@@ -131,7 +144,7 @@ export function CommentPanel({
   // Auto-expand selected thread
   useEffect(() => {
     if (selectedCommentId) {
-      setExpandedThreads((prev) => new Set([...prev, selectedCommentId]));
+      setExpandedThreads((prev) => new Set([...Array.from(prev), selectedCommentId]));
     }
   }, [selectedCommentId]);
 
@@ -156,7 +169,7 @@ export function CommentPanel({
 
     onAddComment();
     setNewCommentText("");
-    setExpandedThreads((prev) => new Set([...prev, thread.id]));
+    setExpandedThreads((prev) => new Set([...Array.from(prev), thread.id]));
     loadThreads();
   };
 
@@ -238,6 +251,84 @@ export function CommentPanel({
     onCancelPending();
   };
 
+  // Handle sending AI prompt
+  const handleSendAIPrompt = useCallback(async (threadId: string, prompt: string, mode: AskAIMode) => {
+    try {
+      // Get editor instance
+      const editor = editorMethods?.getEditorInstance();
+      if (!editor) {
+        console.error("[AI] Editor instance not available");
+        return;
+      }
+
+      // Add user's prompt to thread
+      addUserPromptToAIThread(threadId, prompt);
+      loadThreads();
+
+      // Set loading state
+      setAILoading((prev) => ({ ...prev, [threadId]: true }));
+
+      // Add pending AI message
+      const aiMessage = addAIMessageToThread(threadId, "", "pending");
+      if (!aiMessage) {
+        console.error("[AI] Failed to create AI message");
+        setAILoading((prev) => ({ ...prev, [threadId]: false }));
+        return;
+      }
+
+      // Build context pack
+      const contextPack = buildContextPack(editor, { includeFullDoc: false });
+
+      // Get project brain
+      const brain = getBrain(documentId);
+
+      // Build AI request
+      const request: AskAIRequest = {
+        mode,
+        userPrompt: prompt,
+        context: contextPack,
+        brain,
+        meta: {
+          documentId,
+          anchorId: threadId,
+        },
+      };
+
+      // Call AI API
+      const response = await fetch("/api/ai", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(request),
+      });
+
+      if (!response.ok) {
+        throw new Error(`AI API returned ${response.status}`);
+      }
+
+      const data: AskAIResponse = await response.json();
+
+      // Update AI message with response
+      updateAIMessage(threadId, aiMessage.id, data.message, "complete");
+      loadThreads();
+    } catch (error: any) {
+      console.error("[AI] Error:", error);
+
+      // Find the AI message to update with error
+      const thread = threads.find((t) => t.id === threadId);
+      if (thread) {
+        const aiMsg = thread.messages.find((m) => m.author === "ai" && m.status === "pending");
+        if (aiMsg) {
+          updateAIMessage(threadId, aiMsg.id, "Sorry—AI request failed. Please try again.", "error");
+          loadThreads();
+        }
+      }
+    } finally {
+      setAILoading((prev) => ({ ...prev, [threadId]: false }));
+    }
+  }, [documentId, editorMethods, threads, loadThreads]);
+
   if (!isOpen) return null;
 
   return (
@@ -310,6 +401,35 @@ export function CommentPanel({
             </div>
           </div>
         )}
+
+        {/* AI threads awaiting prompt */}
+        {aiThreadsAwaitingPrompt.map((thread) => (
+            <div
+              key={thread.id}
+              className={cn(
+                "p-4 border-b border-border",
+                selectedCommentId === thread.id ? "bg-muted/50" : "bg-muted/30"
+              )}
+            >
+              <div className="flex items-start gap-2 mb-3">
+                <Sparkles className="w-4 h-4 text-purple-500 flex-shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs text-muted-foreground mb-1">
+                    Ask AI about:
+                  </div>
+                  <div className="text-sm bg-purple-100/50 dark:bg-purple-900/20 px-2 py-1 rounded italic break-words">
+                    &ldquo;{getDisplayText(thread)}&rdquo;
+                  </div>
+                </div>
+              </div>
+              <AskAIComposer
+                onSend={(prompt, mode) => handleSendAIPrompt(thread.id, prompt, mode)}
+                onCancel={() => handleDeleteThread(thread.id)}
+                autoFocus={selectedCommentId === thread.id}
+                disabled={aiLoading[thread.id]}
+              />
+            </div>
+          ))}
 
         {/* Empty state */}
         {threads.length === 0 && !pendingComment && (
@@ -591,6 +711,10 @@ function MessageBubble({
   onDelete,
   canDelete,
 }: MessageBubbleProps) {
+  const isAI = message.author === "ai";
+  const isPending = message.status === "pending";
+  const isError = message.status === "error";
+
   if (isEditing) {
     return (
       <div>
@@ -629,31 +753,67 @@ function MessageBubble({
 
   return (
     <div className="group">
-      <p className="text-sm text-foreground whitespace-pre-wrap break-words">
-        {message.content}
-      </p>
-      <div className="flex items-center justify-between mt-1">
-          <span className="text-xs text-muted-foreground">
-            {formatRelativeTime(message.updatedAt)}
-          </span>
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button
-            onClick={onStartEdit}
-            className="p-1 hover:bg-muted rounded transition-colors text-muted-foreground hover:text-foreground"
-            title="Edit"
-          >
-            <Edit2 className="w-3 h-3" />
-          </button>
-          {canDelete && (
-            <button
-              onClick={onDelete}
-              className="p-1 hover:bg-muted rounded transition-colors text-muted-foreground hover:text-red-500"
-              title="Delete"
-            >
-              <Trash2 className="w-3 h-3" />
-            </button>
+      {/* AI loading state */}
+      {isAI && isPending && (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          <span>Thinking...</span>
+        </div>
+      )}
+
+      {/* Regular message content */}
+      {(!isAI || !isPending) && (
+        <div className={cn(
+          "text-sm break-words",
+          isAI && "bg-purple-50/50 dark:bg-purple-900/10 px-3 py-2 rounded-md",
+          isError && "text-red-500",
+          !isAI && "whitespace-pre-wrap"
+        )}>
+          {isAI && <Sparkles className="w-3 h-3 inline-block mr-1 mb-0.5 text-purple-500" />}
+          {isAI ? (
+            <div className="inline">
+              <ReactMarkdown
+                components={{
+                  p: ({ children }) => <span>{children}</span>,
+                  strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                  em: ({ children }) => <em className="italic">{children}</em>,
+                  code: ({ children }) => <code className="bg-muted px-1 py-0.5 rounded text-xs">{children}</code>,
+                }}
+              >
+                {message.content}
+              </ReactMarkdown>
+            </div>
+          ) : (
+            message.content
           )}
         </div>
+      )}
+
+      <div className="flex items-center justify-between mt-1">
+        <span className="text-xs text-muted-foreground">
+          {isAI ? "AI" : "You"} · {formatRelativeTime(message.updatedAt)}
+        </span>
+        {/* Only allow editing/deleting user messages */}
+        {!isAI && (
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              onClick={onStartEdit}
+              className="p-1 hover:bg-muted rounded transition-colors text-muted-foreground hover:text-foreground"
+              title="Edit"
+            >
+              <Edit2 className="w-3 h-3" />
+            </button>
+            {canDelete && (
+              <button
+                onClick={onDelete}
+                className="p-1 hover:bg-muted rounded transition-colors text-muted-foreground hover:text-red-500"
+                title="Delete"
+              >
+                <Trash2 className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

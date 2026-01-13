@@ -2,14 +2,15 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Editor } from "@tiptap/react";
-import { MessageSquarePlus } from "lucide-react";
+import { MessageSquarePlus, Sparkles } from "lucide-react";
 
 interface SelectionBubbleProps {
   editor: Editor | null;
   onAddComment: (text: string) => void;
+  onAskAI: (text: string) => void;
 }
 
-export function SelectionBubble({ editor, onAddComment }: SelectionBubbleProps) {
+export function SelectionBubble({ editor, onAddComment, onAskAI }: SelectionBubbleProps) {
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
   const [selectedText, setSelectedText] = useState("");
   const isClickingRef = useRef(false);
@@ -104,7 +105,7 @@ export function SelectionBubble({ editor, onAddComment }: SelectionBubbleProps) 
     return () => window.removeEventListener("scroll", handleScroll, true);
   }, [position, updatePosition]);
 
-  const handleClick = useCallback(() => {
+  const handleCommentClick = useCallback(() => {
     if (selectedText) {
       onAddComment(selectedText);
       setPosition(null);
@@ -112,6 +113,15 @@ export function SelectionBubble({ editor, onAddComment }: SelectionBubbleProps) 
     }
     isClickingRef.current = false;
   }, [selectedText, onAddComment]);
+
+  const handleAskAIClick = useCallback(() => {
+    if (selectedText) {
+      onAskAI(selectedText);
+      setPosition(null);
+      setSelectedText("");
+    }
+    isClickingRef.current = false;
+  }, [selectedText, onAskAI]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     // Prevent editor blur
@@ -130,14 +140,25 @@ export function SelectionBubble({ editor, onAddComment }: SelectionBubbleProps) 
         left: position.left,
       }}
     >
-      <button
-        onMouseDown={handleMouseDown}
-        onClick={handleClick}
-        className="flex items-center gap-1.5 px-3 py-1.5 bg-foreground text-background text-sm font-medium rounded-full shadow-lg hover:bg-foreground/90 transition-colors"
-      >
-        <MessageSquarePlus className="w-4 h-4" />
-        <span>Comment</span>
-      </button>
+      <div className="flex items-center gap-2 p-1 bg-foreground text-background rounded-full shadow-lg">
+        <button
+          onMouseDown={handleMouseDown}
+          onClick={handleAskAIClick}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-full hover:bg-background/10 transition-colors"
+        >
+          <Sparkles className="w-4 h-4" />
+          <span>Ask AI</span>
+        </button>
+        <div className="w-px h-4 bg-background/20" />
+        <button
+          onMouseDown={handleMouseDown}
+          onClick={handleCommentClick}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-full hover:bg-background/10 transition-colors"
+        >
+          <MessageSquarePlus className="w-4 h-4" />
+          <span>Comment</span>
+        </button>
+      </div>
     </div>
   );
 }

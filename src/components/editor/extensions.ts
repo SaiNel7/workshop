@@ -18,6 +18,37 @@ const RedoShortcut = Extension.create({
   },
 });
 
+// Debug extension to test Context Pack extraction (Alt+P)
+// Set to false in production
+const DEBUG_CONTEXT_PACK = false;
+
+const DebugContextPack = Extension.create({
+  name: "debugContextPack",
+
+  addKeyboardShortcuts() {
+    return {
+      "Alt-p": () => {
+        if (!DEBUG_CONTEXT_PACK) return false;
+
+        // Import helpers dynamically to avoid circular deps
+        import("@/lib/contextExtractor").then(({ buildContextPack }) => {
+          const contextPack = buildContextPack(this.editor, {
+            includeFullDoc: false,
+          });
+
+          console.log("=== DEBUG CONTEXT PACK (Alt+P) ===");
+          console.log("Selected text:", contextPack.selectedText);
+          console.log("Local context:", contextPack.localContext);
+          console.log("Outline:", contextPack.outline);
+          console.log("================================");
+        });
+
+        return true;
+      },
+    };
+  },
+});
+
 // Create suggestion render function for React
 function createSuggestionRender() {
   let component: ReactRenderer<CommandMenuRef> | null = null;
@@ -121,9 +152,6 @@ export const editorExtensions = [
         class: "editor-blockquote",
       },
     },
-    history: {
-      depth: 100,
-    },
   }),
   Placeholder.configure({
     placeholder: "Type '/' for commands, or just start writing...",
@@ -137,4 +165,5 @@ export const editorExtensions = [
   }),
   CommentMark,
   RedoShortcut,
+  DebugContextPack,
 ];

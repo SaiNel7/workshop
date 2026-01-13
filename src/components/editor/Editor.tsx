@@ -31,6 +31,7 @@ interface EditorProps {
   isCommentPanelOpen: boolean;
   onToggleCommentPanel: () => void;
   onAddCommentFromSelection: (text: string) => void;
+  onAskAIFromSelection: (text: string) => void;
   onCommentClick: (commentId: string) => void;
   onCommentAdded: () => void;
   onCommentDeleted: (commentId: string) => void;
@@ -44,6 +45,7 @@ export function Editor({
   isCommentPanelOpen,
   onToggleCommentPanel,
   onAddCommentFromSelection,
+  onAskAIFromSelection,
   onCommentClick,
   onCommentAdded,
   onCommentDeleted,
@@ -328,6 +330,11 @@ export function Editor({
     return data;
   }, [editor]);
 
+  // Get editor instance (for AI context extraction)
+  const getEditorInstance = useCallback(() => {
+    return editor;
+  }, [editor]);
+
   // Register editor methods with context for CommentPanel to access
   const { registerEditor, unregisterEditor } = useEditorContext();
 
@@ -338,6 +345,7 @@ export function Editor({
       getCommentText,
       getAllCommentTexts,
       getAllCommentData,
+      getEditorInstance,
     });
     return () => {
       unregisterEditor();
@@ -345,6 +353,7 @@ export function Editor({
   }, [
     registerEditor,
     unregisterEditor,
+    getEditorInstance,
     applyCommentMark,
     removeCommentMark,
     getCommentText,
@@ -363,6 +372,14 @@ export function Editor({
       onAddCommentFromSelection(text);
     },
     [onAddCommentFromSelection]
+  );
+
+  // Handle Ask AI from floating bubble
+  const handleAskAI = useCallback(
+    (text: string) => {
+      onAskAIFromSelection(text);
+    },
+    [onAskAIFromSelection]
   );
 
   if (!editor) {
@@ -498,7 +515,7 @@ export function Editor({
       <EditorContent editor={editor} />
 
       {/* Floating selection bubble for comments */}
-      <SelectionBubble editor={editor} onAddComment={handleBubbleComment} />
+      <SelectionBubble editor={editor} onAddComment={handleBubbleComment} onAskAI={handleAskAI} />
     </div>
   );
 }

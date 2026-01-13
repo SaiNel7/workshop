@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Topbar } from "@/components/layout/Topbar";
 import { Editor } from "@/components/editor/Editor";
 import { CommentPanel } from "@/components/editor/CommentPanel";
+import { BrainPanel } from "@/components/ai/BrainPanel";
 import {
   getDocument,
   createDocument,
@@ -13,7 +14,7 @@ import {
   getAllDocuments,
   toggleStarDocument,
 } from "@/lib/store/documentStore";
-import { getDocumentComments } from "@/lib/store/commentStore";
+import { getDocumentComments, createAIThread } from "@/lib/store/commentStore";
 import { Document } from "@/lib/types";
 import { formatRelativeTime } from "@/lib/utils";
 import { EditorProvider } from "@/lib/EditorContext";
@@ -37,6 +38,9 @@ export default function DocPage({ params }: DocPageProps) {
   const [selectedCommentId, setSelectedCommentId] = useState<string | null>(null);
   const [pendingComment, setPendingComment] = useState<{ text: string } | null>(null);
   const [commentCount, setCommentCount] = useState(0);
+
+  // Brain panel state
+  const [isBrainPanelOpen, setIsBrainPanelOpen] = useState(false);
 
   // Load comment count
   const loadCommentCount = useCallback(() => {
@@ -109,6 +113,17 @@ export default function DocPage({ params }: DocPageProps) {
     setPendingComment({ text });
     setIsCommentPanelOpen(true);
   }, []);
+
+  // Handle Ask AI from selection
+  const handleAskAIFromSelection = useCallback((text: string) => {
+    // Create an AI thread with default mode (critique)
+    const thread = createAIThread(params.id, text, "critique");
+
+    // Open comment panel and select the new AI thread
+    setSelectedCommentId(thread.id);
+    setIsCommentPanelOpen(true);
+    loadCommentCount();
+  }, [params.id, loadCommentCount]);
 
   // Handle comment added
   const handleCommentAdded = useCallback(() => {
@@ -190,6 +205,7 @@ export default function DocPage({ params }: DocPageProps) {
             starred={starred}
             onToggleStar={handleToggleStar}
             onDelete={handleDeleteDocument}
+            onOpenBrain={() => setIsBrainPanelOpen(true)}
           />
 
           <div className="flex-1 overflow-auto">
@@ -217,6 +233,7 @@ export default function DocPage({ params }: DocPageProps) {
               isCommentPanelOpen={isCommentPanelOpen}
               onToggleCommentPanel={toggleCommentPanel}
               onAddCommentFromSelection={handleAddCommentFromSelection}
+              onAskAIFromSelection={handleAskAIFromSelection}
               onCommentClick={handleCommentClick}
               onCommentAdded={handleCommentAdded}
               onCommentDeleted={handleCommentDeleted}
@@ -237,6 +254,13 @@ export default function DocPage({ params }: DocPageProps) {
           onAddComment={handleCommentAdded}
           onDeleteComment={handleCommentDeleted}
           onCancelPending={() => setPendingComment(null)}
+        />
+
+        {/* Brain panel (outside main content, affects full height) */}
+        <BrainPanel
+          projectId={params.id}
+          isOpen={isBrainPanelOpen}
+          onClose={() => setIsBrainPanelOpen(false)}
         />
       </div>
     </EditorProvider>
