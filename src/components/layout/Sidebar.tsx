@@ -159,7 +159,7 @@ export function Sidebar({ onOpenQuickSwitch }: SidebarProps) {
           href="/"
           className="flex items-center px-2 py-1.5 rounded-md hover:bg-muted cursor-pointer transition-colors inline-block"
         >
-          <span className="text-sm font-medium text-foreground">PLAYGROUND</span>
+          <span className="text-sm font-medium text-foreground">WORKSHOP</span>
         </Link>
       </div>
 

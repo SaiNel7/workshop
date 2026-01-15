@@ -32,6 +32,7 @@ export default function DocPage({ params }: DocPageProps) {
   const [starred, setStarred] = useState(false);
   const [lastEdited, setLastEdited] = useState<number | null>(null);
   const titleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const titleTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Comment panel state (lifted from Editor)
   const [isCommentPanelOpen, setIsCommentPanelOpen] = useState(false);
@@ -80,11 +81,19 @@ export default function DocPage({ params }: DocPageProps) {
   );
 
   // Handle title change
-  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleTitleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newTitle = e.target.value;
     setTitle(newTitle);
     saveTitle(newTitle);
   };
+
+  // Auto-resize textarea when title changes
+  useEffect(() => {
+    if (titleTextareaRef.current) {
+      titleTextareaRef.current.style.height = 'auto';
+      titleTextareaRef.current.style.height = titleTextareaRef.current.scrollHeight + 'px';
+    }
+  }, [title]);
 
   // Handle editor content update
   const handleEditorUpdate = useCallback(() => {
@@ -211,13 +220,20 @@ export default function DocPage({ params }: DocPageProps) {
           <div className="flex-1 overflow-auto">
             {/* Document header with large editable title */}
             <div className="max-w-3xl mx-auto w-full px-16 pt-16 pb-4">
-              <input
-                type="text"
+              <textarea
+                ref={titleTextareaRef}
                 value={title}
                 onChange={handleTitleChange}
                 placeholder="Untitled"
-                className="w-full text-4xl font-bold text-foreground bg-transparent outline-none placeholder:text-muted-foreground/40"
+                className="w-full text-4xl font-bold text-foreground bg-transparent outline-none placeholder:text-muted-foreground/40 resize-none overflow-hidden"
                 spellCheck={false}
+                rows={1}
+                onInput={(e) => {
+                  // Auto-resize textarea to fit content
+                  const target = e.target as HTMLTextAreaElement;
+                  target.style.height = 'auto';
+                  target.style.height = target.scrollHeight + 'px';
+                }}
               />
 
               {/* Last edited indicator */}

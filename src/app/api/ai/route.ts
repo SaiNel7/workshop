@@ -16,8 +16,11 @@ const anthropic = new Anthropic({
 
 // Configuration
 const AI_MODEL = process.env.AI_MODEL || "claude-3-5-sonnet-20241022";
-const AI_MAX_OUTPUT_TOKENS = parseInt(process.env.AI_MAX_OUTPUT_TOKENS || "2000", 10);
 const AI_TIMEOUT_MS = 25000; // 25 seconds
+
+// Mode-specific token limits
+const MAX_TOKENS_CRITIQUE = 650;  // Short, concise critiques
+const MAX_TOKENS_SYNTHESIZE = 2000; // Full rewrites with explanation
 
 /**
  * POST /api/ai
@@ -241,7 +244,7 @@ async function callAnthropicWithTimeout(
     try {
       const message = await anthropic.messages.create({
         model: AI_MODEL,
-        max_tokens: AI_MAX_OUTPUT_TOKENS,
+        max_tokens: mode === "synthesize" ? MAX_TOKENS_SYNTHESIZE : MAX_TOKENS_CRITIQUE,
         system: systemPrompt,
         messages: [
           {

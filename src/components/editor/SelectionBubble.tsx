@@ -79,9 +79,23 @@ export function SelectionBubble({ editor, onAddComment, onAskAI }: SelectionBubb
 
     // Also listen for mouse up to catch drag selections
     const handleMouseUp = (e: MouseEvent) => {
-      // Don't update position if clicking on the bubble itself
       const target = e.target as HTMLElement;
+
+      // Don't update position if clicking on the bubble itself
       if (target.closest('[data-selection-bubble]')) return;
+
+      // Check if clicking on the editor
+      const editorElement = editor.view.dom;
+      const isEditorClick = editorElement.contains(target);
+
+      // If clicking outside the editor, hide the bubble
+      if (!isEditorClick) {
+        setPosition(null);
+        setSelectedText("");
+        return;
+      }
+
+      // Otherwise update position (for drag selections within editor)
       setTimeout(updatePosition, 10);
     };
     document.addEventListener("mouseup", handleMouseUp);

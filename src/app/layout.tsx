@@ -9,7 +9,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Playground",
+  title: "Workshop",
   description: "A Notion-like workspace for your documents",
 };
 
